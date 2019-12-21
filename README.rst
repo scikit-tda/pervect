@@ -8,7 +8,8 @@ measuring the Wasserstein distance between the Gaussian mixtures. As the number 
 components in mixture model increases the accuracy of the approximation increases
 accordingly until, with equivalence in the limit.
 
-The library is implemented as a `Scikit-learn <>`_ transformer -- taking a list of
+The library is implemented as a `Scikit-learn <https://scikit-learn.org/stable/>`_
+transformer -- taking a list of
 persistence diagrams (preferably in birth-lifetime format) as input, and transforming
 it into a vector representation (specifically the component weights for a Gaussian
 mixture model fit to the union of all the diagrams). Distances can then be computed
