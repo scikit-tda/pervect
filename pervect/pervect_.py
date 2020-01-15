@@ -8,6 +8,7 @@ import umap
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.mixture import GaussianMixture
 from sklearn.metrics import pairwise_distances
+from sklearn.preprocessing import normalize
 
 
 def wasserstein_diagram_distance(p, pts0, pts1, y_axis='death'):
@@ -27,7 +28,7 @@ def wasserstein_diagram_distance(p, pts0, pts1, y_axis='death'):
     else:
         raise ValueError('y_axis must be \'death\' or \'lifetime\'')
         
-    pairwise_dist = sklearn.metrics.pairwise_distances(pts0, pts1)
+    pairwise_dist = pairwise_distances(pts0, pts1)
     
     all_pairs_ground_distance_a = np.hstack([pairwise_dist, extra_dist0[:, np.newaxis]])
     extra_row = np.zeros(all_pairs_ground_distance_a.shape[1])
@@ -53,16 +54,17 @@ def gmm_component_likelihood(component_mean, component_covar, diagram):
         diagram,
         mean=component_mean,
         cov=component_covar,
-    ).sum()
+    )
 
 
 def vectorize_diagram(diagram, gmm):
-    result = np.zeros(gmm.n_components)
-    for i in range(result.shape[0]):
-        result[i] = gmm_component_likelihood(
+    interim_matrix = np.zeros((gmm.n_components, diagram.shape[0]))
+    for i in range(interim_matrix.shape[0]):
+        interim_matrix[i] = gmm_component_likelihood(
             gmm.means_[i], gmm.covariances_[i], diagram
         )
-    return result/result.sum()*diagram.shape[0]
+    normalize(interim_matrix, norm='l1', axis=0, copy=False)
+    return interim_matrix.sum(axis=1)
 
 
 @numba.njit()
