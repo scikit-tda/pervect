@@ -11,13 +11,29 @@ from sklearn.preprocessing import normalize
 
 
 def wasserstein_diagram_distance(p, pts0, pts1, y_axis="death"):
-    """
-    Compute the Persistant p-Wasserstein distance between the diagrams pts0, pts1
-    
-    y_axis = 'death' (default), or 'lifetime'
-    
-    """
+    """Compute the Persistant p-Wasserstein distance between the diagrams pts0, pts1
 
+    Parameters
+    ----------
+    p: int
+        The p in the p-Wasserstein distance to compute
+
+    pts0: array of shape (n_top_features, 2)
+        The first persistence diagram
+
+    pts1: array of shape (n_top_features, 2)
+        Thew second persistence diagram
+
+    y_axis: optional, default="death"
+        What the y-axis of the diagra represents. Should be one of
+            * ``"lifetime"``
+            * ``"death"``
+
+    Returns
+    -------
+    distance: float
+        The p-Wasserstein distance between diagrams ``pts0`` and ``pts1``
+    """
     if y_axis == "lifetime":
         extra_dist0 = pts0[:, 1]
         extra_dist1 = pts1[:, 1]
@@ -49,12 +65,50 @@ def wasserstein_diagram_distance(p, pts0, pts1, y_axis="death"):
 
 
 def gmm_component_likelihood(component_mean, component_covar, diagram):
+    """Generate the vector of likelihoods of observing points in a diagram
+    for a single gmm components (i.e. a single Gaussian). That is, evaluate
+    the given Gaussian PDF at all points in the diagram.
+
+    Parameters
+    ----------
+    component_mean: array of shape (2,)
+        The mean of the Gaussian
+
+    component_covar: array of shape (2,2)
+        The covariance matrix of the Gaussian
+
+    diagram: array of shape (n_top_features, 2)
+        The persistence diagram
+
+    Returns
+    -------
+    likelihoods: array of shape (n_top_features,)
+        The likelihood of observing each topological feature in the diagram
+        under the provided Gaussian
+    """
     return scipy.stats.multivariate_normal.pdf(
         diagram, mean=component_mean, cov=component_covar,
     )
 
 
 def vectorize_diagram(diagram, gmm):
+    """Given a diagram and a Guassian Mixture Model, produce the vectorized
+    representation of the diagram as a vector of weights associated to
+    each component of the GMM.
+
+    Parameters
+    ----------
+    diagram: array of shape (n_top_features, 2)
+        The persistence diagram to be vectorized
+
+    gmm: sklearn.mixture.GaussianMixture
+        The Gaussian mMoxture Model to use for vectorization
+
+    Returns
+    -------
+    vect: array of shape (gmm.n_components,)
+        The vector representation of the persistence diagram
+    """
     interim_matrix = np.zeros((gmm.n_components, diagram.shape[0]))
     for i in range(interim_matrix.shape[0]):
         interim_matrix[i] = gmm_component_likelihood(
@@ -66,6 +120,18 @@ def vectorize_diagram(diagram, gmm):
 
 @numba.njit()
 def mat_sqrt(mat):
+    """Closed form solution for the square root of a 2x2 matrix
+
+    Parameters
+    ----------
+    mat: array of shape (2,2)
+        The matrix to take the square root of
+
+    Returns
+    -------
+    root: array of shape (2,2)
+        The matrix such that root * root == mat (up to precision)
+    """
     result = mat.copy()
     s = mat[0, 0] * mat[1, 1] - mat[1, 0] * mat[0, 1]
     factor = 1.0 / (mat[0, 0] + mat[1, 1] + 2.0 * s)
@@ -78,6 +144,30 @@ def mat_sqrt(mat):
 
 @numba.njit()
 def wasserstein2_gaussian(m1, C1, m2, C2):
+    """Compute the Wasserstein_2 distance between two 2D Gaussians. This can be
+    computed via the closed form formula:
+
+    $$W_{2} (\mu_1, \mu_2)^2 = \| m_1 - m_2 \|_2^2 + \mathop{\mathrm{trace}} \bigl( C_1 + C_2 - 2 \bigl( C_2^{1/2} C_1 C_2^{1/2} \bigr)^{1/2} \bigr)$$
+
+    Parameters
+    ----------
+    m1: array of shape (2,)
+        Mean of the first Gaussian
+
+    C1: array of shape (2,2)
+        Covariance matrix of the first Gaussian
+
+    m1: array of shape (2,)
+        Mean of the second Gaussian
+
+    C2: array of shape (2,2)
+        Covariance matrix of the second Gaussian
+
+    Returns
+    -------
+    dist: float
+        The Wasserstein_2 distance between the two Gaussians
+    """
     result = np.sum((m1 - m2) ** 2)
     sqrt_C2 = mat_sqrt(C2)
     prod_matrix = sqrt_C2 @ C1 @ sqrt_C2
