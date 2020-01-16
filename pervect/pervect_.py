@@ -1,13 +1,12 @@
+import numba
 import numpy as np
+import ot
 import scipy.linalg
 import scipy.stats
-import numba
-import ot
 import umap
-
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.mixture import GaussianMixture
 from sklearn.metrics import pairwise_distances
+from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import normalize
 
 
