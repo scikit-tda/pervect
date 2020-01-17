@@ -10,14 +10,11 @@ from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import normalize
 
 
-def wasserstein_diagram_distance(p, pts0, pts1, y_axis="death"):
+def wasserstein_diagram_distance(pts0, pts1, y_axis="death", p=1):
     """Compute the Persistant p-Wasserstein distance between the diagrams pts0, pts1
 
     Parameters
     ----------
-    p: int
-        The p in the p-Wasserstein distance to compute
-
     pts0: array of shape (n_top_features, 2)
         The first persistence diagram
 
@@ -25,9 +22,12 @@ def wasserstein_diagram_distance(p, pts0, pts1, y_axis="death"):
         Thew second persistence diagram
 
     y_axis: optional, default="death"
-        What the y-axis of the diagra represents. Should be one of
+        What the y-axis of the diagram represents. Should be one of
             * ``"lifetime"``
             * ``"death"``
+
+    p: int, optional (default=1)
+        The p in the p-Wasserstein distance to compute
 
     Returns
     -------
@@ -102,7 +102,7 @@ def vectorize_diagram(diagram, gmm):
         The persistence diagram to be vectorized
 
     gmm: sklearn.mixture.GaussianMixture
-        The Gaussian mMoxture Model to use for vectorization
+        The Gaussian Mixture Model to use for vectorization
 
     Returns
     -------
@@ -179,6 +179,23 @@ def wasserstein2_gaussian(m1, C1, m2, C2):
 
 @numba.njit()
 def pairwise_gaussian_ground_distance(means, covariances):
+    """Compute pairwise distances between a list of Gaussians. This can be
+    used as the ground distance for an earth-mover distance computation on
+    vectorized persistence diagrams.
+
+    Parameters
+    ----------
+    means: array of shape (n_gaussians, 2)
+        The means for the Gaussians
+
+    covariances: array of shape (n_gaussians, 2, 2)
+        The covariance matrrices of the Gaussians
+
+    Returns
+    -------
+    dist_matrix: array of shape (n_gaussians, n_gaussians)
+        The pairwise Wasserstein_2 distance between the Gaussians
+    """
     n_components = means.shape[0]
 
     result = np.zeros((n_components, n_components), dtype=np.float32)
@@ -193,10 +210,35 @@ def pairwise_gaussian_ground_distance(means, covariances):
 
 
 def add_birth_death_line(ground_distance, means, covariances, y_axis="death"):
-    """
-    Return an appended ground distance matrix with the extra distance to the lifetime=0 line 
-    """
+    """Return an appended ground distance matrix with the extra distance to
+    the lifetime=0 line. This provides a ground-distance for points in a
+    persistence diagram to be removed via moving them to the line provided
+    by lifetime=0, making this a true persistence diagram wasserstein
+    distance approximation when computed as an earth-mover distance under this
+    ground-distance.
 
+    Parameters
+    ----------
+    ground_distance: array of shape (n_gaussians, n_gaussians)
+        The current ground distance matrix of pairwise Wasserstein_2 distance
+        between the Gaussians.
+
+    means: array of shape (n_gaussians, 2)
+       The means for the Gaussians
+
+    covariances: array of shape (n_gaussians, 2, 2)
+       The covariance matrrices of the Gaussians
+
+    y_axis: optional, (default="death")
+        What the y-axis of the diagram represents. Should be one of
+            * ``"lifetime"``
+            * ``"death"``
+
+    Returns
+    -------
+    new_ground_distance: array of shape (n_gaussians + 1, n_gaussians + 1)
+        The amended matrix to be used as a ground-distance matrix
+    """
     if y_axis == "lifetime":
         euclidean_dist = means[:, 1]
         anti_line = np.array([0, 1])
@@ -216,6 +258,28 @@ def add_birth_death_line(ground_distance, means, covariances, y_axis="death"):
 
 
 def persistence_wasserstein_distance(x, y, ground_distance):
+    """Compute an approximation of Persistence Wasserstein_1 distance
+    between persistenced iagrams with vector representations ``x`` and ``y``
+    using the ground distance provided.
+
+    Parameters
+    ----------
+    x: array of shape (n_gaussians,)
+        The vectorization of the first persistence diagram
+
+    y: array of shape (n_gaussians,)
+        The vectorization of the first persistence diagram
+
+    ground_distance: array of shape (n_gaussians + 1, n_gaussians + 1)
+        The amended ground-distance as output by ``add_birth_death_line``
+
+    Returns
+    -------
+    dist: float
+        Ann approximation of Persistence Wasserstein_1 distance
+        between persistenced iagrams with vector representations
+        ``x`` and ``y``
+    """
     x_a = np.append(x, y.sum())
     x_a /= x_a.sum()
     y_a = np.append(y, x.sum())
@@ -224,11 +288,37 @@ def persistence_wasserstein_distance(x, y, ground_distance):
     return (x.sum() + y.sum()) * (plan * ground_distance).sum()
 
 
-def persistence_p_wasserstein_distance(p, x, y, ground_distance):
+def persistence_p_wasserstein_distance(x, y, ground_distance, p=1):
+    """Compute an approximation of Persistence Wasserstein_p distance
+    between persistenced iagrams with vector representations ``x`` and ``y``
+    using the ground distance provided, and p=``p``.
+
+    Parameters
+    ----------
+    x: array of shape (n_gaussians,)
+        The vectorization of the first persistence diagram
+
+    y: array of shape (n_gaussians,)
+        The vectorization of the first persistence diagram
+
+    ground_distance: array of shape (n_gaussians + 1, n_gaussians + 1)
+        The amended ground-distance as output by ``add_birth_death_line``
+
+    p: int, optional (default=1)
+        The p in the p-Wasserstein distance to compute
+
+    Returns
+    -------
+    dist: float
+        Ann approximation of Persistence Wasserstein_1 distance
+        between persistenced iagrams with vector representations
+        ``x`` and ``y``
+    """
     return np.power(persistence_wasserstein_distance(x, y, ground_distance ** p), 1 / p)
 
 
 class PersistenceVectorizer(BaseEstimator, TransformerMixin):
+
     def __init__(
         self, n_components=20, apply_umap=False, umap_n_components=2, y_axis="death"
     ):
