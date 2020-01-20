@@ -24,13 +24,14 @@ base_data = np.vstack(
 
 
 def test_mat_sqrt():
+
     test_matrix = np.random.normal(size=(2, 2))
     # ensure it is symmetric
     test_matrix += test_matrix.T
     test_matrix = np.ascontiguousarray(test_matrix)
 
-    print(np.linalg.det(test_matrix))
-    print(np.linalg.matrix_power(test_matrix, 0.5))
+    print(np.linalg.eigh(test_matrix))
+ #   print(np.linalg.matrix_power(test_matrix, 0.5))
 
     root = mat_sqrt(test_matrix)
     print(root)
@@ -46,7 +47,7 @@ def test_gmm_component_likelihood():
         np.array([0.0, 0.0]), np.array([[1.0, 0.0], [0.0, 1.0]]), data,
     )
     for i in range(data.shape[0]):
-        likelihood = np.exp(0.5 * data[i] @ data[i]) / 2 * np.pi
+        likelihood = np.exp(-0.5 * (data[i] @ data[i])) / (2 * np.pi)
         assert np.isclose(result[i], likelihood)
 
 
@@ -70,7 +71,8 @@ def test_wasserstein2_gaussian_simple_cov():
 def test_pairwise_gaussian_ground_distance_simple_cov():
 
     means = np.random.random(size=(10, 2))
-    covariances = np.dstack([np.array([[1.0, 0.0], [0.0, 1.0]]) for i in range(10)])
+    covariances = np.dstack([np.array([[1.0, 0.0], [0.0, 1.0]]) for i in range(10)]).T
+    print(covariances[1])
 
     wass_dist = pairwise_gaussian_ground_distance(means, covariances)
     euc_dist = pairwise_distances(means, metric="euclidean")
