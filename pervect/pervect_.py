@@ -8,6 +8,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.metrics import pairwise_distances
 from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import normalize
+from sklearn.utils import check_array
 
 
 def wasserstein_diagram_distance(pts0, pts1, y_axis="death", p=1):
@@ -319,17 +320,93 @@ def persistence_p_wasserstein_distance(x, y, ground_distance, p=1):
 
 class PersistenceVectorizer(BaseEstimator, TransformerMixin):
 
+    """Vectorizer for persistence diagrams. Given a training set set of persistence
+    diagrams this class will fit a Gaussian mixture model to the set of all points
+    across all diagrams and vectorize a diagram as the MLE of mix weights for
+    the existing components given the diagram. This provides a very low-dimensional
+    but informative vectorization fo the data. Moreover this vectorization can be
+    used to compute approximations to p-Wassertstein distance between diagrams.
+
+    A potential further vectorization step, using UMAP to convert p-Wassertstein
+    distance approxmations to a low dimensional euclidean representation can also
+    be applied, allowing easy visualization of the persistence diagram space
+    itself, even under a suitable metric. This option can be enabled with
+    the ``apply_umap`` parameter.
+
+    Parameters
+    ----------
+    n_components: int (optional, default=20)
+        The number of components or dimensions to use in the vectorized representation.
+
+    apply_umap: bool (optional, default=False)
+        Whether to apply UMAP to the results to generate a low dimensional euclidean
+        space representation of the diagrams.
+
+    umap_n_components: int (optional, default=2)
+        The number of dimensions of euclidean space to use when representing the
+        diagrams via UMAP.
+
+    p: int (optional, default=1)
+        The default p value to use when computing p-Wasserstein distance
+
+    y_axis: string (optional, default="death")
+        What the y-axis represents in the diagrams. The options are either
+        birth-death diagrams or birth-lifetime diagrams. This parameter should
+        be one of:
+            * ``"death"``
+            * ``"lifetime"``
+
+    Attributes
+    ----------
+    mixture_model_: sklearn.mixture.GaussianMixture
+        The Gaussian mixture model that was fit to the complete set of training
+        diagrams.
+
+    ground_distance_: np.array(n_components + 1, n_components + 1)
+        The all pairs distance matrix of Wasserstein distance between the components
+        of the mixture model, plus an extra component representing the zero-lifetime
+        line. This, in turn, can be used as a means to compute Wassersteing distance
+        between vectorizations by computing an earth-mover distance with this matrix
+        as the ground-distance or cost matrix.
+    """
+
     def __init__(
-        self, n_components=20, apply_umap=False, umap_n_components=2, y_axis="death"
+        self, n_components=20, apply_umap=False, umap_n_components=2, p=1, y_axis="death"
     ):
         self.n_components = n_components
         self.apply_umap = apply_umap
         self.umap_n_components = umap_n_components
         self.y_axis = y_axis
+        self.p = p
 
     def fit(self, X):
-        # TODO: verify we have diagrams of the appropriate form
-        diagram_union = np.vstack(X)
+        """Fit a pervect model to the list of persistence diagrams X
+
+        Optionally use y for supervised dimension reduction.
+
+        Parameters
+        ----------
+        X : list or tuple of arrays of shape (N, 2)
+            The diagrams to fit the model to. Each diagram should be an array
+            of shape (N, 2) for varying N, where each row of the array is the
+            birth-death or birth-lifetime coordinates of a topological feature
+            in the diagram. ``X`` should then be a list or tuple of such arrays.
+        """
+        try:
+            diagram_union = np.vstack(X)
+        except:
+            raise ValueError("Input data is not a list or tuple of diagrams!"
+                             "Please provide a list of ndarrays of diagrams.")
+
+        diagram_union = check_array(diagram_union)
+        if diagram_union.shape[1] != 2:
+            raise ValueError("Input data is not a list or tuple of diagrams!"
+                             "Please provide a list of ndarrays of diagrams."
+                             "Each diagram should be an array of points in the"
+                             "plane corresponding to either the birth-death "
+                             "or the birth-lifetime coordinates of an observed"
+                             "topological feature.")
+
         self.mixture_model_ = GaussianMixture(n_components=self.n_components)
         self.mixture_model_.fit(diagram_union)
         self._raw_ground_distance = pairwise_gaussian_ground_distance(
@@ -345,6 +422,25 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X, y=None):
+        """Transform a list or tuple of persistence diagrams into a pervect
+        representation. This will provide a vector representation of the diagrams
+        provided by X as an array with one row for each diagram in the same order
+        as the diagrams were passed in.
+
+        Parameters
+        ----------
+        X: list or tuple of arrays of shape (N, 2)
+            The diagrams to fit the model to. Each diagram should be an array
+            of shape (N, 2) for varying N, where each row of the array is the
+            birth-death or birth-lifetime coordinates of a topological feature
+            in the diagram. ``X`` should then be a list or tuple of such arrays.
+
+        Returns
+        -------
+        vectors: array of shape (n_samples, n_components)
+            The vectorization of the diagrams with a row of size ``n_components``
+            for each diagram.
+        """
         result = np.vstack(
             [vectorize_diagram(diagram, self.mixture_model_) for diagram in X]
         )
@@ -353,8 +449,9 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
             distance_matrix = pairwise_distances(
                 result,
                 metric=persistence_wasserstein_distance,
-                ground_distance=self.ground_distance_,
+                ground_distance=self.ground_distance_ ** self.p,
             )
+            distance_matrix = np.power(distance_matrix, 1.0 / self.p)
             result = umap.UMAP(
                 metric="precomputed", n_components=self.umap_n_components,
             ).fit_transform(distance_matrix)
@@ -362,12 +459,50 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
         return result
 
     def fit_transform(self, X, y=None):
+        """Fit a pervect model to the list of persistence diagrams X and
+        return pervect representation of X.
+
+        Parameters
+        ----------
+        X: list or tuple of arrays of shape (N, 2)
+            The diagrams to fit the model to. Each diagram should be an array
+            of shape (N, 2) for varying N, where each row of the array is the
+            birth-death or birth-lifetime coordinates of a topological feature
+            in the diagram. ``X`` should then be a list or tuple of such arrays.
+
+        Returns
+        -------
+        vectors: array of shape (n_samples, n_components)
+            The vectorization of the diagrams with a row of size ``n_components``
+            for each diagram.
+        """
         return self.fit(X).transform(X)
 
-    def pairwise_p_wasserstein_distance(self, p, X):
-        vecs = np.vstack(
-            [vectorize_diagram(diagram, self.mixture_model_) for diagram in X]
-        )
+    def pairwise_p_wasserstein_distance(self, X, p=None):
+        """Compute (an approximation of) the all pairs p-Wasserstein distance
+        between persistence diagrams X.
+
+        Parameters
+        ----------
+        X: list or tuple of arrays of shape (N, 2)
+            The diagrams to fit the model to. Each diagram should be an array
+            of shape (N, 2) for varying N, where each row of the array is the
+            birth-death or birth-lifetime coordinates of a topological feature
+            in the diagram. ``X`` should then be a list or tuple of such arrays.
+
+        p: int (optional, default=None)
+            The p value to use when computing p-Wasserstein distance. If ``p``
+            is ``None`` then the models p-value will be used.
+
+        Returns
+        -------
+        distance_matrix: array of shape (n_diagrams, n_diagrams)
+            The matrix of all pairwise p-Wasserstein distances between the
+            persistence diagrams X.
+        """
+        if p is None:
+            p = self.p
+        vecs = self.transform(X)
         distance_matrix = pairwise_distances(
             vecs,
             metric=persistence_wasserstein_distance,
