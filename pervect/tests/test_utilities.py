@@ -3,12 +3,24 @@ from pervect.pervect_ import (
     mat_sqrt,
     wasserstein2_gaussian,
     pairwise_gaussian_ground_distance,
+    vectorize_diagram,
     pairwise_distances,
+    GaussianMixture,
 )
 
 import pytest
 
 import numpy as np
+
+np.random.seed(42)
+base_data = np.vstack(
+    [
+        np.random.beta(1, 5, size=100),
+        np.random.gamma(shape=0.5, scale=1.0, size=100),
+    ]
+).T
+
+
 
 
 def test_mat_sqrt():
@@ -35,7 +47,7 @@ def test_gmm_component_likelihood():
 
 def test_wasserstein2_gaussian_simple_cov():
 
-    means = np.random.random(10, 2)
+    means = np.random.random(size=(10, 2))
     covariance = np.array([[1, 0], [0, 1]])
 
     wass_dist = np.zeros((10, 10))
@@ -48,3 +60,25 @@ def test_wasserstein2_gaussian_simple_cov():
     euc_dist = pairwise_distances(means, metric="euclidean")
 
     assert np.allclose(wass_dist, euc_dist)
+
+
+def test_pairwise_gaussian_ground_distance_simple_cov():
+
+    means = np.random.random(size=(10, 2))
+    covariances = np.dstack([np.array([[1, 0], [0, 1]]) for i in range(10)])
+
+    wass_dist = pairwise_gaussian_ground_distance(means, covariances)
+    euc_dist = pairwise_distances(means, metric="euclidean")
+
+    assert np.allclose(wass_dist, euc_dist)
+
+
+def test_vectorize_diagram():
+
+    gmm = GaussianMixture(n_components=4, random_state=42).fit(base_data)
+    result = vectorize_diagram(np.array([[0.5, 0.2],[0.75, 0.1]]), gmm)
+    assert np.allclose(
+        result, np.array(
+            [6.24722853e-02, 5.50441490e-33, 0.00000000e+00, 1.93752771e+00]
+        )
+    )
