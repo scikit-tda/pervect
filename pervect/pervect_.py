@@ -9,9 +9,10 @@ from sklearn.metrics import pairwise_distances
 from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import normalize
 from sklearn.utils import check_array
+from typing import Union, Sequence, List
 
 
-def wasserstein_diagram_distance(pts0, pts1, y_axis="death", p=1):
+def wasserstein_diagram_distance(pts0: np.ndarray, pts1: np.ndarray, y_axis="death", p=1):
     """Compute the Persistant p-Wasserstein distance between the diagrams pts0, pts1
 
     Parameters
@@ -65,7 +66,7 @@ def wasserstein_diagram_distance(pts0, pts1, y_axis="death", p=1):
     return np.power((n0 + n1) * ot.emd2(a, b, all_pairs_ground_distance_a), 1.0 / p)
 
 
-def gmm_component_likelihood(component_mean, component_covar, diagram):
+def gmm_component_likelihood(component_mean: np.ndarray, component_covar: np.ndarray, diagram: np.ndarray):
     """Generate the vector of likelihoods of observing points in a diagram
     for a single gmm components (i.e. a single Gaussian). That is, evaluate
     the given Gaussian PDF at all points in the diagram.
@@ -92,7 +93,7 @@ def gmm_component_likelihood(component_mean, component_covar, diagram):
     )
 
 
-def vectorize_diagram(diagram, gmm):
+def vectorize_diagram(diagram: np.ndarray, gmm: GaussianMixture):
     """Given a diagram and a Guassian Mixture Model, produce the vectorized
     representation of the diagram as a vector of weights associated to
     each component of the GMM.
@@ -120,7 +121,7 @@ def vectorize_diagram(diagram, gmm):
 
 
 @numba.njit()
-def mat_sqrt(mat):
+def mat_sqrt(mat: np.ndarray):
     """Closed form solution for the square root of a 2x2 matrix
 
     Parameters
@@ -144,7 +145,7 @@ def mat_sqrt(mat):
 
 
 @numba.njit()
-def wasserstein2_gaussian(m1, C1, m2, C2):
+def wasserstein2_gaussian(m1: np.ndarray, C1: np.ndarray, m2: np.ndarray, C2: np.ndarray):
     """Compute the Wasserstein_2 distance between two 2D Gaussians. This can be
     computed via the closed form formula:
 
@@ -179,7 +180,7 @@ def wasserstein2_gaussian(m1, C1, m2, C2):
 
 
 @numba.njit()
-def pairwise_gaussian_ground_distance(means, covariances):
+def pairwise_gaussian_ground_distance(means: np.ndarray, covariances: np.ndarray):
     """Compute pairwise distances between a list of Gaussians. This can be
     used as the ground distance for an earth-mover distance computation on
     vectorized persistence diagrams.
@@ -210,7 +211,7 @@ def pairwise_gaussian_ground_distance(means, covariances):
     return result
 
 
-def add_birth_death_line(ground_distance, means, covariances, y_axis="death"):
+def add_birth_death_line(ground_distance: np.ndarray, means: np.ndarray, covariances: np.ndarray, y_axis="death"):
     """Return an appended ground distance matrix with the extra distance to
     the lifetime=0 line. This provides a ground-distance for points in a
     persistence diagram to be removed via moving them to the line provided
@@ -258,7 +259,7 @@ def add_birth_death_line(ground_distance, means, covariances, y_axis="death"):
     return ground_distance_a
 
 
-def persistence_wasserstein_distance(x, y, ground_distance):
+def persistence_wasserstein_distance(x: np.ndarray, y: np.ndarray, ground_distance: np.ndarray):
     """Compute an approximation of Persistence Wasserstein_1 distance
     between persistenced iagrams with vector representations ``x`` and ``y``
     using the ground distance provided.
@@ -289,7 +290,7 @@ def persistence_wasserstein_distance(x, y, ground_distance):
     return (x.sum() + y.sum()) * (plan * ground_distance).sum()
 
 
-def persistence_p_wasserstein_distance(x, y, ground_distance, p=1):
+def persistence_p_wasserstein_distance(x: np.ndarray, y: np.ndarray, ground_distance: np.ndarray, p=1):
     """Compute an approximation of Persistence Wasserstein_p distance
     between persistenced iagrams with vector representations ``x`` and ``y``
     using the ground distance provided, and p=``p``.
@@ -379,7 +380,7 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
         self.y_axis = y_axis
         self.p = p
 
-    def fit(self, X):
+    def fit(self, X: Sequence[np.ndarray]):
         """Fit a pervect model to the list of persistence diagrams X
 
         Optionally use y for supervised dimension reduction.
@@ -421,7 +422,7 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
 
         return self
 
-    def transform(self, X, y=None):
+    def transform(self, X: Sequence[np.ndarray], y=None):
         """Transform a list or tuple of persistence diagrams into a pervect
         representation. This will provide a vector representation of the diagrams
         provided by X as an array with one row for each diagram in the same order
@@ -458,7 +459,7 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
 
         return result
 
-    def fit_transform(self, X, y=None):
+    def fit_transform(self, X: Sequence[np.ndarray], y=None, **kwargs):
         """Fit a pervect model to the list of persistence diagrams X and
         return pervect representation of X.
 
@@ -478,7 +479,7 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
         """
         return self.fit(X).transform(X)
 
-    def pairwise_p_wasserstein_distance(self, X, p=None):
+    def pairwise_p_wasserstein_distance(self, X: np.ndarray, p:Union[int, None]=None):
         """Compute (an approximation of) the all pairs p-Wasserstein distance
         between persistence diagrams X.
 
