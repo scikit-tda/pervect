@@ -9,10 +9,12 @@ from sklearn.metrics import pairwise_distances
 from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import normalize
 from sklearn.utils import check_array
-from typing import Union, Sequence, List
+from typing import Union, Sequence, List, AnyStr
 
 
-def wasserstein_diagram_distance(pts0: np.ndarray, pts1: np.ndarray, y_axis="death", p=1):
+def wasserstein_diagram_distance(
+    pts0: np.ndarray, pts1: np.ndarray, y_axis: AnyStr = "death", p: int = 1
+) -> float:
     """Compute the Persistant p-Wasserstein distance between the diagrams pts0, pts1
 
     Parameters
@@ -66,7 +68,9 @@ def wasserstein_diagram_distance(pts0: np.ndarray, pts1: np.ndarray, y_axis="dea
     return np.power((n0 + n1) * ot.emd2(a, b, all_pairs_ground_distance_a), 1.0 / p)
 
 
-def gmm_component_likelihood(component_mean: np.ndarray, component_covar: np.ndarray, diagram: np.ndarray):
+def gmm_component_likelihood(
+    component_mean: np.ndarray, component_covar: np.ndarray, diagram: np.ndarray
+) -> np.ndarray:
     """Generate the vector of likelihoods of observing points in a diagram
     for a single gmm components (i.e. a single Gaussian). That is, evaluate
     the given Gaussian PDF at all points in the diagram.
@@ -93,7 +97,7 @@ def gmm_component_likelihood(component_mean: np.ndarray, component_covar: np.nda
     )
 
 
-def vectorize_diagram(diagram: np.ndarray, gmm: GaussianMixture):
+def vectorize_diagram(diagram: np.ndarray, gmm: GaussianMixture) -> np.ndarray:
     """Given a diagram and a Guassian Mixture Model, produce the vectorized
     representation of the diagram as a vector of weights associated to
     each component of the GMM.
@@ -121,7 +125,7 @@ def vectorize_diagram(diagram: np.ndarray, gmm: GaussianMixture):
 
 
 @numba.njit()
-def mat_sqrt(mat: np.ndarray):
+def mat_sqrt(mat: np.ndarray) -> np.ndarray:
     """Closed form solution for the square root of a 2x2 matrix
 
     Parameters
@@ -145,7 +149,9 @@ def mat_sqrt(mat: np.ndarray):
 
 
 @numba.njit()
-def wasserstein2_gaussian(m1: np.ndarray, C1: np.ndarray, m2: np.ndarray, C2: np.ndarray):
+def wasserstein2_gaussian(
+    m1: np.ndarray, C1: np.ndarray, m2: np.ndarray, C2: np.ndarray
+) -> float:
     """Compute the Wasserstein_2 distance between two 2D Gaussians. This can be
     computed via the closed form formula:
 
@@ -180,7 +186,9 @@ def wasserstein2_gaussian(m1: np.ndarray, C1: np.ndarray, m2: np.ndarray, C2: np
 
 
 @numba.njit()
-def pairwise_gaussian_ground_distance(means: np.ndarray, covariances: np.ndarray):
+def pairwise_gaussian_ground_distance(
+    means: np.ndarray, covariances: np.ndarray
+) -> np.ndarray:
     """Compute pairwise distances between a list of Gaussians. This can be
     used as the ground distance for an earth-mover distance computation on
     vectorized persistence diagrams.
@@ -211,7 +219,12 @@ def pairwise_gaussian_ground_distance(means: np.ndarray, covariances: np.ndarray
     return result
 
 
-def add_birth_death_line(ground_distance: np.ndarray, means: np.ndarray, covariances: np.ndarray, y_axis="death"):
+def add_birth_death_line(
+    ground_distance: np.ndarray,
+    means: np.ndarray,
+    covariances: np.ndarray,
+    y_axis: AnyStr = "death",
+) -> np.ndarray:
     """Return an appended ground distance matrix with the extra distance to
     the lifetime=0 line. This provides a ground-distance for points in a
     persistence diagram to be removed via moving them to the line provided
@@ -259,7 +272,9 @@ def add_birth_death_line(ground_distance: np.ndarray, means: np.ndarray, covaria
     return ground_distance_a
 
 
-def persistence_wasserstein_distance(x: np.ndarray, y: np.ndarray, ground_distance: np.ndarray):
+def persistence_wasserstein_distance(
+    x: np.ndarray, y: np.ndarray, ground_distance: np.ndarray
+) -> float:
     """Compute an approximation of Persistence Wasserstein_1 distance
     between persistenced iagrams with vector representations ``x`` and ``y``
     using the ground distance provided.
@@ -290,7 +305,9 @@ def persistence_wasserstein_distance(x: np.ndarray, y: np.ndarray, ground_distan
     return (x.sum() + y.sum()) * (plan * ground_distance).sum()
 
 
-def persistence_p_wasserstein_distance(x: np.ndarray, y: np.ndarray, ground_distance: np.ndarray, p=1):
+def persistence_p_wasserstein_distance(
+    x: np.ndarray, y: np.ndarray, ground_distance: np.ndarray, p: int = 1
+) -> float:
     """Compute an approximation of Persistence Wasserstein_p distance
     between persistenced iagrams with vector representations ``x`` and ``y``
     using the ground distance provided, and p=``p``.
@@ -372,7 +389,12 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
     """
 
     def __init__(
-        self, n_components=20, apply_umap=False, umap_n_components=2, p=1, y_axis="death"
+        self,
+        n_components=20,
+        apply_umap=False,
+        umap_n_components=2,
+        p=1,
+        y_axis="death",
     ):
         self.n_components = n_components
         self.apply_umap = apply_umap
@@ -396,17 +418,21 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
         try:
             diagram_union = np.vstack(X)
         except:
-            raise ValueError("Input data is not a list or tuple of diagrams!"
-                             "Please provide a list of ndarrays of diagrams.")
+            raise ValueError(
+                "Input data is not a list or tuple of diagrams!"
+                "Please provide a list of ndarrays of diagrams."
+            )
 
         diagram_union = check_array(diagram_union)
         if diagram_union.shape[1] != 2:
-            raise ValueError("Input data is not a list or tuple of diagrams!"
-                             "Please provide a list of ndarrays of diagrams."
-                             "Each diagram should be an array of points in the"
-                             "plane corresponding to either the birth-death "
-                             "or the birth-lifetime coordinates of an observed"
-                             "topological feature.")
+            raise ValueError(
+                "Input data is not a list or tuple of diagrams!"
+                "Please provide a list of ndarrays of diagrams."
+                "Each diagram should be an array of points in the"
+                "plane corresponding to either the birth-death "
+                "or the birth-lifetime coordinates of an observed"
+                "topological feature."
+            )
 
         self.mixture_model_ = GaussianMixture(n_components=self.n_components)
         self.mixture_model_.fit(diagram_union)
@@ -422,7 +448,7 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
 
         return self
 
-    def transform(self, X: Sequence[np.ndarray], y=None):
+    def transform(self, X: Sequence[np.ndarray], y=None) -> np.ndarray:
         """Transform a list or tuple of persistence diagrams into a pervect
         representation. This will provide a vector representation of the diagrams
         provided by X as an array with one row for each diagram in the same order
@@ -459,7 +485,7 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
 
         return result
 
-    def fit_transform(self, X: Sequence[np.ndarray], y=None, **kwargs):
+    def fit_transform(self, X: Sequence[np.ndarray], y=None, **kwargs) -> np.ndarray:
         """Fit a pervect model to the list of persistence diagrams X and
         return pervect representation of X.
 
@@ -479,7 +505,9 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
         """
         return self.fit(X).transform(X)
 
-    def pairwise_p_wasserstein_distance(self, X: np.ndarray, p:Union[int, None]=None):
+    def pairwise_p_wasserstein_distance(
+        self, X: np.ndarray, p: Union[int, None] = None
+    ) -> np.ndarray:
         """Compute (an approximation of) the all pairs p-Wasserstein distance
         between persistence diagrams X.
 
