@@ -4,6 +4,7 @@ from pervect.pervect_ import (
     wasserstein2_gaussian,
     pairwise_gaussian_ground_distance,
     vectorize_diagram,
+    add_birth_death_line,
     pairwise_distances,
     GaussianMixture,
 )
@@ -67,7 +68,6 @@ def test_pairwise_gaussian_ground_distance_simple_cov():
 
     means = np.random.random(size=(10, 2))
     covariances = np.dstack([np.array([[1.0, 0.0], [0.0, 1.0]]) for i in range(10)]).T
-    print(covariances[1])
 
     wass_dist = pairwise_gaussian_ground_distance(means, covariances)
     euc_dist = pairwise_distances(means, metric="euclidean")
@@ -84,3 +84,19 @@ def test_vectorize_diagram():
             [6.24722853e-02, 5.50441490e-33, 0.00000000e+00, 1.93752771e+00]
         )
     )
+
+
+def test_add_birth_death_line():
+
+    means = np.random.random(size=(10, 2))
+    covariances = np.dstack([np.array([[1.0, 0.0], [0.0, 1.0]]) for i in range(10)]).T
+    ground_dist = pairwise_gaussian_ground_distance(means, covariances)
+
+    new_ground_dist = add_birth_death_line(ground_dist, means, covariances, y_axis="lifetime")
+    assert np.allclose(new_ground_dist[-1, :-1], means[:, 1] + 1.0)
+
+    new_ground_dist = add_birth_death_line(ground_dist, means, covariances, y_axis="death")
+    print(new_ground_dist[-1, :-1] / ((means[:, 0] - means[:, 1]) / np.sqrt(2)))
+
+    assert(False)
+

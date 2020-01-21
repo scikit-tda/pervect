@@ -176,7 +176,7 @@ def wasserstein2_gaussian(
         The Wasserstein_2 distance between the two Gaussians
     """
     result = np.sum((m1 - m2) ** 2)
-    sqrt_C2 = mat_sqrt(C2)
+    sqrt_C2 = np.ascontiguousarray(mat_sqrt(C2))
     prod_matrix = sqrt_C2 @ C1 @ sqrt_C2
     sqrt_prod_matrix = mat_sqrt(prod_matrix)
     correction_matrix = C1 + C2 - 2 * sqrt_prod_matrix
