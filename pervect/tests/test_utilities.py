@@ -30,12 +30,7 @@ def test_mat_sqrt():
     test_matrix += test_matrix.T
     test_matrix = np.ascontiguousarray(test_matrix)
 
-    print(np.linalg.eigh(test_matrix))
- #   print(np.linalg.matrix_power(test_matrix, 0.5))
-
     root = mat_sqrt(test_matrix)
-    print(root)
-
     square = root @ root
 
     assert np.allclose(test_matrix, square)

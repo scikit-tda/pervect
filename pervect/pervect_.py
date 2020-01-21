@@ -139,12 +139,11 @@ def mat_sqrt(mat: np.ndarray) -> np.ndarray:
         The matrix such that root * root == mat (up to precision)
     """
     result = mat.copy()
-    s = mat[0, 0] * mat[1, 1] - mat[1, 0] * mat[0, 1]
-    factor = 1.0 / (mat[0, 0] + mat[1, 1] + 2.0 * s)
-    result[0, 0] = result[0, 0] * np.sqrt(factor) + np.sqrt(s * factor)
-    result[1, 1] = result[1, 1] * np.sqrt(factor) + np.sqrt(s * factor)
-    result[0, 1] *= np.sqrt(factor)
-    result[1, 0] *= np.sqrt(factor)
+    s = np.sqrt(mat[0, 0] * mat[1, 1] - mat[1, 0] * mat[0, 1])
+    t = np.sqrt(mat[0, 0] + mat[1, 1] + 2.0 * s)
+    result[0, 0] += s
+    result[1, 1] += s
+    result /= t
     return result
 
 
