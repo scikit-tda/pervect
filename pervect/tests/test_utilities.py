@@ -5,6 +5,8 @@ from pervect.pervect_ import (
     pairwise_gaussian_ground_distance,
     vectorize_diagram,
     add_birth_death_line,
+    wasserstein_diagram_distance,
+    persistence_p_wasserstein_distance,
     pairwise_distances,
     GaussianMixture,
 )
@@ -26,6 +28,7 @@ base_data = np.vstack(
 
 def test_mat_sqrt():
 
+    np.random.seed(42)
     test_matrix = np.random.normal(size=(2, 2))
     # ensure it is symmetric
     test_matrix += test_matrix.T
@@ -96,7 +99,40 @@ def test_add_birth_death_line():
     assert np.allclose(new_ground_dist[-1, :-1], means[:, 1] + 1.0)
 
     new_ground_dist = add_birth_death_line(ground_dist, means, covariances, y_axis="death")
-    print(new_ground_dist[-1, :-1] / ((means[:, 0] - means[:, 1]) / np.sqrt(2)))
+    assert np.allclose(new_ground_dist[-1, :-1],
+                       ((means[:, 1] - means[:,0]) / np.sqrt(2)) + 1.0)
 
-    assert(False)
+
+def test_wasserstein_diagram_distance():
+
+    pts0 = base_data[:10]
+    pts1 = base_data[-10:]
+
+    d_death_1 = wasserstein_diagram_distance(pts0, pts1, "death", 1)
+    assert np.isclose(d_death_1, 0.6218)
+
+    d_life_1 = wasserstein_diagram_distance(pts0, pts1, "lifetime", 1)
+    assert np.isclose(d_life_1, 1.17625)
+
+
+def test_persistence_p_wasserstein_distance():
+
+    gmm = GaussianMixture(n_components=4, random_state=42).fit(base_data[10:90])
+    v1 = vectorize_diagram(base_data[:10], gmm)
+    v2 = vectorize_diagram(base_data[-10:], gmm)
+
+    raw_ground_distance = pairwise_gaussian_ground_distance(
+        gmm.means_, gmm.covariances_,
+    )
+    ground_distance = add_birth_death_line(
+        raw_ground_distance,
+        gmm.means_,
+        gmm.covariances_,
+        y_axis="lifetime",
+    )
+
+    d = persistence_p_wasserstein_distance(v1, v2, ground_distance)
+
+    assert np.isclose(d, 0.94303)
+
 

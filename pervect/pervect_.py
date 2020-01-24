@@ -8,8 +8,8 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.metrics import pairwise_distances
 from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import normalize
-from sklearn.utils import check_array
-from typing import Union, Sequence, List, AnyStr
+from sklearn.utils.validation import check_array, check_is_fitted
+from typing import Union, Sequence, AnyStr
 
 
 def wasserstein_diagram_distance(
@@ -401,7 +401,7 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
         self.y_axis = y_axis
         self.p = p
 
-    def fit(self, X: Sequence[np.ndarray]):
+    def fit(self, X: Sequence[np.ndarray], y=None):
         """Fit a pervect model to the list of persistence diagrams X
 
         Optionally use y for supervised dimension reduction.
@@ -418,18 +418,18 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
             diagram_union = np.vstack(X)
         except:
             raise ValueError(
-                "Input data is not a list or tuple of diagrams!"
+                "Input data is not a list or tuple of diagrams! "
                 "Please provide a list of ndarrays of diagrams."
             )
 
         diagram_union = check_array(diagram_union)
         if diagram_union.shape[1] != 2:
             raise ValueError(
-                "Input data is not a list or tuple of diagrams!"
-                "Please provide a list of ndarrays of diagrams."
-                "Each diagram should be an array of points in the"
+                "Input data is not a list or tuple of diagrams! "
+                "Please provide a list of ndarrays of diagrams. "
+                "Each diagram should be an array of points in the "
                 "plane corresponding to either the birth-death "
-                "or the birth-lifetime coordinates of an observed"
+                "or the birth-lifetime coordinates of an observed "
                 "topological feature."
             )
 
@@ -467,6 +467,7 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
             The vectorization of the diagrams with a row of size ``n_components``
             for each diagram.
         """
+        check_is_fitted(self, ["mixture_model_", "ground_distance_"])
         result = np.vstack(
             [vectorize_diagram(diagram, self.mixture_model_) for diagram in X]
         )
