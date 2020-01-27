@@ -8,8 +8,10 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.metrics import pairwise_distances
 from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import normalize
-from sklearn.utils.validation import check_array, check_is_fitted
+from sklearn.utils.validation import check_array, check_is_fitted, check_random_state
 from typing import Union, Sequence, AnyStr
+
+from warnings import warn
 
 
 def wasserstein_diagram_distance(
@@ -308,7 +310,7 @@ def persistence_p_wasserstein_distance(
     x: np.ndarray, y: np.ndarray, ground_distance: np.ndarray, p: int = 1
 ) -> float:
     """Compute an approximation of Persistence Wasserstein_p distance
-    between persistenced iagrams with vector representations ``x`` and ``y``
+    between persistenced diagrams with vector representations ``x`` and ``y``
     using the ground distance provided, and p=``p``.
 
     Parameters
@@ -363,6 +365,15 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
         The number of dimensions of euclidean space to use when representing the
         diagrams via UMAP.
 
+    umap_metric: string (optional, default="hellinger")
+        What metric to use for the UMAP embedding if ``apply_umap`` is enabled (
+        this option will be ignored if ``apply_umap`` is ``False``). Should be one
+        of:
+            * ``"wasserstein"``
+            * ``"hellinger"``
+        Note that if ``"wasserstein"`` is used then transforming new data
+        will not be possible.
+
     p: int (optional, default=1)
         The default p value to use when computing p-Wasserstein distance
 
@@ -392,14 +403,41 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
         n_components=20,
         apply_umap=False,
         umap_n_components=2,
+        umap_metric="hellinger",
         p=1,
         y_axis="death",
+        random_state=None,
     ):
         self.n_components = n_components
         self.apply_umap = apply_umap
         self.umap_n_components = umap_n_components
+        self.umap_metric = umap_metric
         self.y_axis = y_axis
         self.p = p
+        self.random_state = random_state
+
+    def _validate_params(self):
+        if (
+            not np.issubdtype(type(self.n_components), np.integer)
+            or self.n_components < 2
+        ):
+            raise ValueError(
+                "n_components must be and integer greater than or equal " "to 2."
+            )
+        if (
+            not np.issubdtype(type(self.umap_n_components), np.integer)
+            or self.umap_n_components < 2
+        ):
+            raise ValueError(
+                "umap_n_components must be and integer greater than or " "equal to 2."
+            )
+        if (
+            self.umap_n_components != 2 or self.umap_metric != "hellinger"
+        ) and self.apply_umap is False:
+            warn(
+                "apply_umap was False, so umap_n_components and umap_metric will be "
+                "ignored! Did you mean to set apply_umap=True?"
+            )
 
     def fit(self, X: Sequence[np.ndarray], y=None):
         """Fit a pervect model to the list of persistence diagrams X
@@ -414,6 +452,9 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
             birth-death or birth-lifetime coordinates of a topological feature
             in the diagram. ``X`` should then be a list or tuple of such arrays.
         """
+        random_state = check_random_state(self.random_state)
+        self._validate_params()
+
         try:
             diagram_union = np.vstack(X)
         except:
@@ -433,7 +474,9 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
                 "topological feature."
             )
 
-        self.mixture_model_ = GaussianMixture(n_components=self.n_components)
+        self.mixture_model_ = GaussianMixture(
+            n_components=self.n_components, random_state=random_state
+        )
         self.mixture_model_.fit(diagram_union)
         self._raw_ground_distance = pairwise_gaussian_ground_distance(
             self.mixture_model_.means_, self.mixture_model_.covariances_,
@@ -444,6 +487,34 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
             self.mixture_model_.covariances_,
             y_axis=self.y_axis,
         )
+
+        if self.apply_umap:
+            random_state = check_random_state(self.random_state)
+            self.train_vectors_ = np.vstack(
+                [vectorize_diagram(diagram, self.mixture_model_) for diagram in X]
+            )
+            if self.umap_metric == "wasserstein":
+                distance_matrix = pairwise_distances(
+                    self.train_vectors_,
+                    metric=persistence_wasserstein_distance,
+                    ground_distance=self.ground_distance_ ** self.p,
+                )
+                distance_matrix = np.power(distance_matrix, 1.0 / self.p)
+                self.umap_ = umap.UMAP(
+                    metric="precomputed",
+                    n_components=self.umap_n_components,
+                    random_state=random_state,
+                ).fit(distance_matrix)
+            elif self.umap_metric == "hellinger":
+                self.umap_ = umap.UMAP(
+                    metric="hellinger",
+                    n_components=self.umap_n_components,
+                    random_state=42,
+                ).fit(self.train_vectors_)
+            else:
+                raise ValueError(
+                    'umap_metric shoud be one of "wasserstein" or ' '"hellinger".'
+                )
 
         return self
 
@@ -473,15 +544,13 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
         )
 
         if self.apply_umap:
-            distance_matrix = pairwise_distances(
-                result,
-                metric=persistence_wasserstein_distance,
-                ground_distance=self.ground_distance_ ** self.p,
-            )
-            distance_matrix = np.power(distance_matrix, 1.0 / self.p)
-            result = umap.UMAP(
-                metric="precomputed", n_components=self.umap_n_components,
-            ).fit_transform(distance_matrix)
+            if self.umap_metric == "wasserstein":
+                raise ValueError(
+                    "Transform is not compatible with 'apply_umap=True'"
+                    "and 'umap_metric=\"wasserstein\"'."
+                )
+            else:
+                result = self.umap_.transform(result)
 
         return result
 
@@ -503,7 +572,13 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
             The vectorization of the diagrams with a row of size ``n_components``
             for each diagram.
         """
-        return self.fit(X).transform(X)
+        self.fit(X)
+        if self.apply_umap:
+            return self.umap_.embedding_
+        else:
+            return np.vstack(
+                [vectorize_diagram(diagram, self.mixture_model_) for diagram in X]
+            )
 
     def pairwise_p_wasserstein_distance(
         self, X: np.ndarray, p: Union[int, None] = None

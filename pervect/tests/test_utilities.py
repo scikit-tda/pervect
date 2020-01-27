@@ -17,13 +17,8 @@ import numpy as np
 
 np.random.seed(42)
 base_data = np.vstack(
-    [
-        np.random.beta(1, 5, size=100),
-        np.random.gamma(shape=0.5, scale=1.0, size=100),
-    ]
+    [np.random.beta(1, 5, size=100), np.random.gamma(shape=0.5, scale=1.0, size=100),]
 ).T
-
-
 
 
 def test_mat_sqrt():
@@ -81,11 +76,9 @@ def test_pairwise_gaussian_ground_distance_simple_cov():
 def test_vectorize_diagram():
 
     gmm = GaussianMixture(n_components=4, random_state=42).fit(base_data)
-    result = vectorize_diagram(np.array([[0.5, 0.2],[0.75, 0.1]]), gmm)
+    result = vectorize_diagram(np.array([[0.5, 0.2], [0.75, 0.1]]), gmm)
     assert np.allclose(
-        result, np.array(
-            [6.24722853e-02, 5.50441490e-33, 0.00000000e+00, 1.93752771e+00]
-        )
+        result, np.array([6.24722853e-02, 5.50441490e-33, 0.00000000e00, 1.93752771e00])
     )
 
 
@@ -95,12 +88,17 @@ def test_add_birth_death_line():
     covariances = np.dstack([np.array([[1.0, 0.0], [0.0, 1.0]]) for i in range(10)]).T
     ground_dist = pairwise_gaussian_ground_distance(means, covariances)
 
-    new_ground_dist = add_birth_death_line(ground_dist, means, covariances, y_axis="lifetime")
+    new_ground_dist = add_birth_death_line(
+        ground_dist, means, covariances, y_axis="lifetime"
+    )
     assert np.allclose(new_ground_dist[-1, :-1], means[:, 1] + 1.0)
 
-    new_ground_dist = add_birth_death_line(ground_dist, means, covariances, y_axis="death")
-    assert np.allclose(new_ground_dist[-1, :-1],
-                       ((means[:, 1] - means[:,0]) / np.sqrt(2)) + 1.0)
+    new_ground_dist = add_birth_death_line(
+        ground_dist, means, covariances, y_axis="death"
+    )
+    assert np.allclose(
+        new_ground_dist[-1, :-1], ((means[:, 1] - means[:, 0]) / np.sqrt(2)) + 1.0
+    )
 
 
 def test_wasserstein_diagram_distance():
@@ -125,14 +123,9 @@ def test_persistence_p_wasserstein_distance():
         gmm.means_, gmm.covariances_,
     )
     ground_distance = add_birth_death_line(
-        raw_ground_distance,
-        gmm.means_,
-        gmm.covariances_,
-        y_axis="lifetime",
+        raw_ground_distance, gmm.means_, gmm.covariances_, y_axis="lifetime",
     )
 
     d = persistence_p_wasserstein_distance(v1, v2, ground_distance)
 
     assert np.isclose(d, 0.94303)
-
-
