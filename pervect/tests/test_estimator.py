@@ -30,6 +30,13 @@ from pervect.pervect_ import (
 )
 
 import umap
+from packaging import version
+
+umap_version = version.parse(umap.__version__)
+if umap_version.minor >= 4:
+    umap_metric="hellinger"
+else:
+    umap_metric = "cosine"
 
 import pytest
 
@@ -67,7 +74,7 @@ def test_pervect_estimator():
             check(estimator)
 
 
-def test_pervect_transform():
+def test_pervect_transform_base():
 
     random_seed = check_random_state(42)
     model = PersistenceVectorizer(n_components=4, random_state=random_seed).fit(
@@ -90,41 +97,42 @@ def test_pervect_transform():
 
     assert np.allclose(model_result, util_result)
 
-    # TODO: re-enable this test when umap 0.4 is released
-    # random_seed = check_random_state(42)
-    # model = PersistenceVectorizer(
-    #     n_components=4, random_state=random_seed, apply_umap=True,
-    # ).fit(base_data)
-    # model_result = model.transform(base_data)
-    # assert np.allclose(model.mixture_model_.means_, gmm.means_)
-    # assert np.allclose(model.mixture_model_.covariances_, gmm.covariances_)
+def test_pervect_transform_umap():
 
-    # TODO: re-enable this test when umap 0.4 is released
-    # random_seed = check_random_state(42)
-    # umap_util_result = umap.UMAP(
-    #     metric="hellinger", random_state=random_seed
-    # ).fit_transform(util_result)
-    #
-    # assert np.allclose(model_result, umap_util_result)
+    random_seed = check_random_state(42)
+    gmm = GaussianMixture(n_components=4, random_state=random_seed).fit(base_data)
+    util_result = np.array([vectorize_diagram(diagram, gmm) for diagram in base_data])
 
-    # random_seed = check_random_state(42)
-    # model = PersistenceVectorizer(
-    #     n_components=4,
-    #     random_state=random_seed,
-    #     apply_umap=True,
-    #     umap_metric="wasserstein",
-    # ).fit(base_data)
-    # model_result = model.umap_.embedding_
-    #
-    # precomputed_dmat = model.pairwise_p_wasserstein_distance(base_data)
-    #
-    # assert np.allclose(precomputed_dmat, model._distance_matrix)
-    #
-    # random_seed = check_random_state(42)
-    # umap_util_result = umap.UMAP(
-    #     metric="precomputed", random_state=random_seed
-    # ).fit_transform(precomputed_dmat)
-    # assert np.allclose(model_result, umap_util_result)
+    model = PersistenceVectorizer(
+        n_components=4, random_state=42, apply_umap=True,
+    ).fit(base_data)
+    model_result = model.transform(base_data)
+    assert np.allclose(model.mixture_model_.means_, gmm.means_)
+    assert np.allclose(model.mixture_model_.covariances_, gmm.covariances_)
+
+    umap_util_result = umap.UMAP(
+        metric=umap_metric, random_state=42
+    ).fit_transform(util_result)
+
+    assert np.allclose(model_result, umap_util_result)
+
+def test_pervect_transform_umap_wasserstein():
+    model = PersistenceVectorizer(
+        n_components=4,
+        random_state=42,
+        apply_umap=True,
+        umap_metric="wasserstein",
+    ).fit(base_data)
+    model_result = model.umap_.embedding_
+
+    precomputed_dmat = model.pairwise_p_wasserstein_distance(base_data)
+
+    assert np.allclose(precomputed_dmat, model._distance_matrix)
+
+    umap_util_result = umap.UMAP(
+        metric="precomputed", random_state=42
+    ).fit_transform(precomputed_dmat)
+    assert np.allclose(model_result, umap_util_result)
 
 
 def test_model_wasserstein():

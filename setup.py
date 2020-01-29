@@ -8,7 +8,7 @@ def readme():
 
 configuration = {
     "name": "pervect",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "description": "Persistence Diagram Vectorizer",
     "long_description": readme(),
     "classifiers": [
