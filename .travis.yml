@@ -6,7 +6,7 @@ python:
   - "3.8"
 
 install:
-  - pip install numpy
+  - pip install numpy==1.16.1
   - pip install cython
   - pip install pot
   - pip install scikit-learn
@@ -17,7 +17,7 @@ install:
   - pip install pytest-cov
 
 script:
-  - pytest --cov pervect
+  - export NUMBA_DISABLE_JIT=1; pytest --cov pervect
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
