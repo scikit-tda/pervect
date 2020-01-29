@@ -15,6 +15,7 @@ install:
   - pip install joblib
   - pip install .
   - pip install pytest-cov
+  - pip install packaging
 
 script:
   - export NUMBA_DISABLE_JIT=1; pytest --cov pervect
