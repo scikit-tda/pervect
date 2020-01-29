@@ -90,13 +90,14 @@ def test_pervect_transform():
 
     assert np.allclose(model_result, util_result)
 
-    random_seed = check_random_state(42)
-    model = PersistenceVectorizer(
-        n_components=4, random_state=random_seed, apply_umap=True,
-    ).fit(base_data)
-    model_result = model.transform(base_data)
-    assert np.allclose(model.mixture_model_.means_, gmm.means_)
-    assert np.allclose(model.mixture_model_.covariances_, gmm.covariances_)
+    # TODO: re-enable this test when umap 0.4 is released
+    # random_seed = check_random_state(42)
+    # model = PersistenceVectorizer(
+    #     n_components=4, random_state=random_seed, apply_umap=True,
+    # ).fit(base_data)
+    # model_result = model.transform(base_data)
+    # assert np.allclose(model.mixture_model_.means_, gmm.means_)
+    # assert np.allclose(model.mixture_model_.covariances_, gmm.covariances_)
 
     # TODO: re-enable this test when umap 0.4 is released
     # random_seed = check_random_state(42)

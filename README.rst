@@ -1,3 +1,6 @@
+.. image:: https://travis-ci.org/scikit-tda/pervect.svg?branch=master
+    :target: https://travis-ci.org/scikit-tda/pervect
+
 =======
 PerVect
 =======
