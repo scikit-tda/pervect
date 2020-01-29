@@ -30,8 +30,9 @@ Euclidean distance representation.
 How to use PerVect
 ------------------
 
-The pervect library inheritis from sklearn classes and can be used as an sklearn
-transformer.
+The pervect library inherits from sklearn classes and can be used as an sklearn
+transformer. Assuming that you have a list persistence diagrams where each
+diagram is a numpy array of points in 2D then you can vectorize by simply applying:
 
 .. code:: python
 
@@ -39,7 +40,35 @@ transformer.
     vects = pervect.PersistenceVectorizer().fit_transform(diagrams)
 
 It can also be used in standard sklearn pipelines along with other machine learning
-tools including clustering and classifiers.
+tools including clustering and classifiers. For example, given a set of training
+diagrams, and a separate test set of diagrams we could do:
+
+.. code:: python
+
+   import pervect
+   vectorizer = pervect.PersistenceVectorizer().fit(train)
+   train_vectors = vectorizer.transform(train)
+   test_vectors = vectorizer.transform(test)
+
+The vectorizer is also effective at efficiently approximating Wasserstein distance
+between diagrams. A trained model can compute pairwise Wasserstein distance between
+a list of diagrams as follows:
+
+.. code:: python
+
+   import pervect
+   vectorizer = pervect.PersistenceVectorizer().fit(train)
+   test_diagram_distances = vectorizer.pairwise_p_wasserstein_distance(test, p=1)
+
+The vectorizer can also automatically produce UMAP representations of the diagrams,
+either using "hellinger" distance or Wasserstein distance (note that transforming
+new data using Wassersteing trained UMAP is currently unavailable).
+
+.. code:: python
+
+   import pervect
+   diagram_map = pervect.PersistenceVectorizer(apply_umap=True).fit(diagrams)
+
 
 ------------
 Installation
@@ -80,6 +109,19 @@ Install the package
 .. code:: bash
 
     pip install .
+
+----------
+References
+----------
+
+This package was inspired by and builds upon the work of Elizabeth Munch, Jose Perea,
+Firas Khasawneh and Sarah Tymochko. You can refer the the papers:
+
+Jose A. Perea, Elizabeth Munch, Firas A. Khasawneh, *Approximating Continuous
+Functions on Persistence Diagrams Using Template Functions*, arXiv:1902.07190
+
+Sarah Tymochko, Elizabeth Munch, Firas A. Khasawneh, *Adaptive Partitioning for
+Template Functions on Persistence Diagrams*, arXiv:1910.08506v1
 
 -------
 License
