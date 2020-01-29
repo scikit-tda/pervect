@@ -29,7 +29,7 @@ configuration = {
         "Programming Language :: Python :: 3.8",
     ],
     "keywords": "persistence, persistent homology, diagram, vectorizer",
-    "url": "http://github.com/lmcinnes/pynndescent",
+    "url": "http://github.com/scikit-tda/pervect",
     "author": "Leland McInnes",
     "author_email": "leland.mcinnes@gmail.com",
     "maintainer": "Leland McInnes",

@@ -1,5 +1,11 @@
+.. image:: https://badge.fury.io/py/pervect.svg
+    :target: https://pypi.org/project/pervect/0.0.1/
 .. image:: https://travis-ci.org/scikit-tda/pervect.svg?branch=master
     :target: https://travis-ci.org/scikit-tda/pervect
+.. image:: https://codecov.io/gh/scikit-tda/pervect/branch/master/graph/badge.svg
+    :target: https://codecov.io/gh/scikit-tda/pervect
+.. image:: https://img.shields.io/badge/License-BSD%203--Clause-blue.svg
+    :target: https://opensource.org/licenses/BSD-3-Clause
 
 =======
 PerVect

@@ -507,11 +507,19 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
                     random_state=random_state,
                 ).fit(self._distance_matrix)
             elif self.umap_metric == "hellinger":
-                self.umap_ = umap.UMAP(
-                    metric="hellinger",
-                    n_components=self.umap_n_components,
-                    random_state=42,
-                ).fit(self.train_vectors_)
+                try:
+                    self.umap_ = umap.UMAP(
+                        metric="hellinger",
+                        n_components=self.umap_n_components,
+                        random_state=random_state,
+                    ).fit(self.train_vectors_)
+                except ValueError:
+                    warn("Hellinger metric not available ... falling back to cosine")
+                    self.umap_ = umap.UMAP(
+                        metric="cosine",
+                        n_components=self.umap_n_components,
+                        random_state=random_state,
+                    ).fit(self.train_vectors_)
             else:
                 raise ValueError(
                     'umap_metric shoud be one of "wasserstein" or ' '"hellinger".'
