@@ -6,8 +6,11 @@ python:
   - "3.8"
 
 install:
+  - pip install numpy
   - pip install cython
   - pip install pot
+  - pip install scikit-learn
+  - pip install numba
   - pip install umap-learn
   - pip install joblib
   - pip install .
