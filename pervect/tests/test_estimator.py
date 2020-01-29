@@ -33,7 +33,7 @@ import umap
 from packaging import version
 
 umap_version = version.parse(umap.__version__)
-if umap_version.minor >= 4:
+if umap_version >= version.parse("0.4.0rc1"):
     umap_metric="hellinger"
 else:
     umap_metric = "cosine"
