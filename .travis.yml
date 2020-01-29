@@ -6,6 +6,7 @@ python:
   - "3.8"
 
 install:
+  - pip install cython
   - pip install pot
   - pip install umap-learn
   - pip install joblib
