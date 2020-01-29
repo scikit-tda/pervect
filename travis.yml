@@ -1,0 +1,19 @@
+language: python
+python:
+  - "3.5"
+  - "3.6"
+  - "3.7"
+  - "3.8"
+
+install:
+  - pip install pot
+  - pip install umap-learn
+  - pip install joblib
+  - pip install .
+  - pip install pytest-cov
+
+script:
+  - pytest --cov pervect
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
