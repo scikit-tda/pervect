@@ -494,17 +494,18 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
                 [vectorize_diagram(diagram, self.mixture_model_) for diagram in X]
             )
             if self.umap_metric == "wasserstein":
-                distance_matrix = pairwise_distances(
+                self._distance_matrix = pairwise_distances(
                     self.train_vectors_,
                     metric=persistence_wasserstein_distance,
                     ground_distance=self.ground_distance_ ** self.p,
                 )
-                distance_matrix = np.power(distance_matrix, 1.0 / self.p)
+                self._distance_matrix = np.power(self._distance_matrix, 1.0 / self.p)
+                random_state = check_random_state(self.random_state)
                 self.umap_ = umap.UMAP(
                     metric="precomputed",
                     n_components=self.umap_n_components,
                     random_state=random_state,
-                ).fit(distance_matrix)
+                ).fit(self._distance_matrix)
             elif self.umap_metric == "hellinger":
                 self.umap_ = umap.UMAP(
                     metric="hellinger",
@@ -545,10 +546,12 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
 
         if self.apply_umap:
             if self.umap_metric == "wasserstein":
-                raise ValueError(
+                warn(
                     "Transform is not compatible with 'apply_umap=True'"
-                    "and 'umap_metric=\"wasserstein\"'."
+                    "and 'umap_metric=\"wasserstein\"'. Returning non-umap"
+                    " diagram vectorization instead."
                 )
+                return result
             else:
                 result = self.umap_.transform(result)
 

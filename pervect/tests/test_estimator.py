@@ -19,13 +19,14 @@ from sklearn.utils.estimator_checks import (
     check_fit_idempotent,
 )
 from sklearn.utils.validation import check_random_state
+from sklearn.metrics import pairwise_distances
 from pervect.pervect_ import (
     GaussianMixture,
     vectorize_diagram,
     wasserstein_diagram_distance,
     pairwise_gaussian_ground_distance,
     add_birth_death_line,
-    persistence_p_wasserstein_distance,
+    persistence_wasserstein_distance,
 )
 
 import umap
@@ -98,11 +99,30 @@ def test_pervect_transform():
     assert np.allclose(model.mixture_model_.covariances_, gmm.covariances_)
 
     random_seed = check_random_state(42)
-    util_result = umap.UMAP(metric="hellinger", random_state=random_seed).fit_transform(
-        util_result
-    )
+    umap_util_result = umap.UMAP(
+        metric="hellinger", random_state=random_seed
+    ).fit_transform(util_result)
 
-    assert np.allclose(model_result, util_result)
+    assert np.allclose(model_result, umap_util_result)
+
+    random_seed = check_random_state(42)
+    model = PersistenceVectorizer(
+        n_components=4,
+        random_state=random_seed,
+        apply_umap=True,
+        umap_metric="wasserstein",
+    ).fit(base_data)
+    model_result = model.umap_.embedding_
+
+    precomputed_dmat = model.pairwise_p_wasserstein_distance(base_data)
+
+    assert np.allclose(precomputed_dmat, model._distance_matrix)
+
+    random_seed = check_random_state(42)
+    umap_util_result = umap.UMAP(
+        metric="precomputed", random_state=random_seed
+    ).fit_transform(precomputed_dmat)
+    assert np.allclose(model_result, umap_util_result)
 
 
 def test_model_wasserstein():
@@ -123,17 +143,11 @@ def test_model_wasserstein():
     ground_distance = add_birth_death_line(
         raw_ground_distance, gmm.means_, gmm.covariances_, y_axis="lifetime",
     )
-    util_dmat = np.array(
-        [
-            [
-                persistence_p_wasserstein_distance(
-                    vec_data[i], vec_data[j], ground_distance
+    util_dmat = pairwise_distances(
+                    vec_data,
+                    metric=persistence_wasserstein_distance,
+                    ground_distance=ground_distance,
                 )
-                for j in range(10)
-            ]
-            for i in range(10)
-        ]
-    )
 
     assert np.allclose(model_dmat, util_dmat)
 
@@ -155,7 +169,10 @@ def test_bad_params():
         PersistenceVectorizer(n_components="foo").fit(base_data)
     with pytest.raises(ValueError):
         PersistenceVectorizer(n_components=-1).fit(base_data)
-
+    with pytest.raises(ValueError):
+        PersistenceVectorizer(n_components="foo", apply_umap=True).fit(base_data)
+    with pytest.raises(ValueError):
+        PersistenceVectorizer(n_components=-1, apply_umap=True).fit(base_data)
     with pytest.warns(UserWarning):
         PersistenceVectorizer(umap_n_components=3).fit(base_data)
     with pytest.warns(UserWarning):

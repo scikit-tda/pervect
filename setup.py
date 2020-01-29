@@ -44,6 +44,15 @@ configuration = {
         "pot >= 0.6",
         "umap-learn >= 0.3.10",
     ],
+    "extras_require" : {  # use `pip install -e ".[testing]"``
+                         'testing': [
+                             'pytest',
+                             'scipy'
+                         ],
+                         'docs': [  # `pip install -e ".[docs]"``
+                             'sktda_docs_config'
+                         ]
+                     },
     "ext_modules": [],
     "cmdclass": {},
     "test_suite": "nose.collector",
