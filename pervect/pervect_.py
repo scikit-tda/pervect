@@ -592,10 +592,14 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
             )
 
     def pairwise_p_wasserstein_distance(
-        self, X: np.ndarray, p: Union[int, None] = None
+        self, X: Sequence[np.ndarray], Y: Union[Sequence[np.ndarray], None] =
+            None, p: Union[int,
+                                                                            None] = None
     ) -> np.ndarray:
         """Compute (an approximation of) the all pairs p-Wasserstein distance
-        between persistence diagrams X.
+        between persistence diagrams X. If a second list of persistence diagrams
+        Y is supplied then the pairwise distances between X and Y are computed,
+        similar to the sklearn ``pairwise_distances`` function.
 
         Parameters
         ----------
@@ -605,6 +609,10 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
             birth-death or birth-lifetime coordinates of a topological feature
             in the diagram. ``X`` should then be a list or tuple of such arrays.
 
+        Y: optional list or tuple of arrays of shape (N, 2) or None (default=None)
+            If not None then the returned distance matrix is of pairwise distances
+            between all pairs (x,y) where x is a diagram of X and y is a diagram of Y.
+
         p: int (optional, default=None)
             The p value to use when computing p-Wasserstein distance. If ``p``
             is ``None`` then the models p-value will be used.
@@ -613,14 +621,26 @@ class PersistenceVectorizer(BaseEstimator, TransformerMixin):
         -------
         distance_matrix: array of shape (n_diagrams, n_diagrams)
             The matrix of all pairwise p-Wasserstein distances between the
-            persistence diagrams X.
+            persistence diagrams X, or pairwise distances between diagrams X
+            and diagrams Y.
         """
         if p is None:
             p = self.p
-        vecs = self.transform(X)
-        distance_matrix = pairwise_distances(
-            vecs,
-            metric=persistence_wasserstein_distance,
-            ground_distance=self.ground_distance_ ** p,
-        )
-        return np.power(distance_matrix, 1.0 / p)
+        if Y is None:
+            vecs = self.transform(X)
+            distance_matrix = pairwise_distances(
+                vecs,
+                metric=persistence_wasserstein_distance,
+                ground_distance=self.ground_distance_ ** p,
+            )
+            return np.power(distance_matrix, 1.0 / p)
+        else:
+            vecs_X = self.transform(X)
+            vecs_Y = self.transform(Y)
+            distance_matrix = pairwise_distances(
+                vecs_X,
+                vecs_Y,
+                metric=persistence_wasserstein_distance,
+                ground_distance=self.ground_distance_ ** p,
+            )
+            return np.power(distance_matrix, 1.0 / p)

@@ -11,19 +11,22 @@
 PerVect
 =======
 
-Vectorization of persistence diagrams and approximate Wasserstein distance. This is
-managed by approximating persistence diagrams with Gaussian mixture models and then
-measuring the Wasserstein distance between the Gaussian mixtures. As the number of
+PerVect is a library for Persistence-diagram Vectorization -- converting the
+output
+of a persistent homology computation to a vector from which it is still possible to
+compute a close approximation to persistent Wasserstein distance. This is
+managed by approximating a training set of persistence diagrams with Gaussian mixture
+models; vectorizing a diagram as the weighted maximum likelihood estimate of the
+mixture weights for the learned components given the diagram; and then measuring the
+Wasserstein distance between vectorized diagrams by the Wasserstein distance between
+the corresponding Gaussian mixtures. As the number of
 components in mixture model increases the accuracy of the approximation increases
-accordingly until, with equivalence in the limit.
+accordingly, with equivalence in the limit.
 
 The library is implemented as a `Scikit-learn <https://scikit-learn.org/stable/>`_
 transformer -- taking a list of
-persistence diagrams (preferably in birth-lifetime format) as input, and transforming
-it into a vector representation (specifically the component weights for a Gaussian
-mixture model fit to the union of all the diagrams). Distances can then be computed
-as Wassterstein distance over a ground-distance matrix provided as an attribute of the
-transformer. Alternatively UMAP can be used to convert toa lower dimensional
+persistence diagrams (preferably in birth-lifetime format) as input, and producing
+vector representations. Alternatively UMAP can be used to convert to a lower dimensional
 Euclidean distance representation.
 
 ------------------
